@@ -7,3 +7,6 @@ Server hanldes the data acess and tools by connecting database, api's or tool.
 Clients act as communication bridge between a host and server that converts a requests into structured format.
 Host coordinatee communication between multiple clients and servers, and handle orchestration logic for end to end task processing.
 MCP uses JSON-RPC 2.0 messages for communication between an MCP client and an MCP server.
+
+
+Rosources: geeksforgeeks, databricks and MCP
