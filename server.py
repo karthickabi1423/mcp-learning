@@ -1,5 +1,5 @@
 from mcp.server.mcpserver import MCPServer
-
+from database import( get_customer as get_customer_from_db,search_customers as search_customers_from_db)
 
 # Create the MCP server
 mcp = MCPServer("my-first-mcp-server")
@@ -8,14 +8,14 @@ mcp = MCPServer("my-first-mcp-server")
 # Create our first MCP tool
 @mcp.tool()
 def add_numbers(a: int, b: int) -> int:
-    """Add two numbers together."""
+    #Add two numbers together
     return a + b
 
 
 # Create our second MCP tool
 @mcp.tool()
 def calculate(a: float, b: float, operation: str) -> float:
-    """Perform a basic calculation on two numbers."""
+    #Perform a basic calculation on two numbers
 
     if operation == "add":
         return a + b
@@ -36,48 +36,78 @@ def calculate(a: float, b: float, operation: str) -> float:
             "Invalid operation. Use add, subtract, multiply, or divide."
         )
 
-# -----------------------------
-# RESOURCE
-# -----------------------------
-@mcp.resource("customer://{customer_id}")
-def get_customer(customer_id: str) -> str:
-    """Get customer information by customer ID."""
+    
+@mcp.tool()
+def search_customers(
+    industry: str = "",
+    status: str = ""
+) -> str:
+    #Search customers by industry and/or status
 
-    customers = {
-        "1001": {
-            "name": "Arun Kumar",
-            "company": "ABC Technologies",
-            "industry": "Software",
-            "status": "Active"
-        },
-        "1002": {
-            "name": "Priya Sharma",
-            "company": "XYZ Solutions",
-            "industry": "Finance",
-            "status": "Active"
-        },
-        "1003": {
-            "name": "Rahul Raj",
-            "company": "TechNova",
-            "industry": "Healthcare",
-            "status": "Inactive"
-        }
-    }
-
-    customer = customers.get(customer_id)
-
-    if not customer:
-        return f"Customer {customer_id} not found."
-
-    return (
-        f"Customer ID: {customer_id}\n"
-        f"Name: {customer['name']}\n"
-        f"Company: {customer['company']}\n"
-        f"Industry: {customer['industry']}\n"
-        f"Status: {customer['status']}"
+    customers = search_customers_from_db(
+        industry=industry or None,
+        status=status or None
     )
 
+    if not customers:
+        return "No customers found."
 
+    results = []
+
+    for customer in customers:
+        customer_id, name, company, industry, status = customer
+
+        results.append(
+            f"Customer ID: {customer_id}\n"
+            f"Name: {name}\n"
+            f"Company: {company}\n"
+            f"Industry: {industry}\n"
+            f"Status: {status}"
+        )
+
+    return "\n\n".join(results)
+
+# Resources
+
+@mcp.resource("customer://{customer_id}")
+def customer_resource(customer_id: str) -> str:
+    #Retrieve customer information from the SQLite database.
+    customer = get_customer_from_db(int(customer_id))
+
+    if customer is None:
+        return f"Customer with ID {customer_id} was not found."
+
+    customer_id, name, company, industry, status = customer
+
+    return f"""
+Customer ID: {customer_id}
+Name: {name}
+Company: {company}
+Industry: {industry}
+Status: {status}
+"""
+
+
+
+#Prompt
+
+@mcp.prompt()
+def analyze_customer(customer_id: str) -> str:
+    #Create an analysis prompt for a customer
+
+    return f"""
+Analyze the customer with ID {customer_id}.
+
+Please provide:
+
+1. Customer summary
+2. Company and industry analysis
+3. Current customer status
+4. Potential business opportunities
+5. Recommended next action
+
+Keep the analysis concise and practical.
+"""
 
 
 if __name__ == "__main__":
