@@ -63,11 +63,11 @@ def search_customers(industry=None, status=None):
     parameters = []
 
     if industry:
-        query += " AND industry = ?"
+        query += " AND LOWER(industry) = LOWER(?)"
         parameters.append(industry)
 
     if status:
-        query += " AND status = ?"
+        query += " AND LOWER(status) = LOWER(?)"
         parameters.append(status)
 
     cursor.execute(query, parameters)
