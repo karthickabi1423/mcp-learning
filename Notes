@@ -10,3 +10,49 @@ MCP uses JSON-RPC 2.0 messages for communication between an MCP client and an MC
 
 
 Rosources: geeksforgeeks, databricks and MCP
+
+Yesterday's MCP learning Update - 02-09-2026
+
+
+
+Built an MCP client using ClientSession.
+Created an MCP server using Python.
+Added and tested 3 MCP tools: add_numbers, calculate, search_customers.
+Created a SQLite database and connected it with the MCP server.
+Added a customer resource using customer://{customer_id}.
+Added and tested the analyze_customer prompt.
+Built an MCP client.py using ClientSession.
+Connected the client to the MCP server using stdio transport.
+Tested tool calling, resource reading, and prompt retrieval from the client.
+Tested tool schemas to understand their input parameters.
+Learned how to read MCP Resources and retrieve Prompts.
+Started understanding tool schemas and how they can be used with an LLM.
+Successfully tested the complete Client → MCP Server → Database flow.
+
+              client.py
+                 │
+                 │ call_tool()
+                 ↓
+          MCP ClientSession
+                 │
+                 │ MCP message
+                 ↓
+             server.py
+                 │
+                 ↓
+        search_customers()
+                 │
+                 ↓
+            database.py
+                 │
+                 ↓
+             SQLite
+                 │
+                 ↓
+          Customer 1001
+                 │
+                 ↓
+          MCP response
+                 │
+                 ↓
+             client.py
