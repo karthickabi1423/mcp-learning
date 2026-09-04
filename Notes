@@ -56,3 +56,70 @@ Successfully tested the complete Client → MCP Server → Database flow.
                  │
                  ↓
              client.py
+
+
+
+Here’s the update on yesterday’s MCP hands-on work: 03-09-2026
+
+Integrated the Groq LLM with our MCP client.
+Implemented LLM-based tool selection, allowing the model to decide which MCP tool should be used based on the user’s request.
+Dynamically converted the MCP tool definitions and input schemas into the format required by Groq.
+Implemented the complete LLM → MCP Tool → Tool Result → LLM workflow.
+Added support for passing MCP tool results back to the LLM to generate the final response.
+Improved tool input validation using structured schemas, including allowed operations for the calculation tool.
+Added handling for MCP tool errors so that errors can be returned to the LLM instead of causing the client to fail.
+Implemented an initial agent loop that allows the LLM to continue processing until it no longer requests a tool.
+Tested the workflow with customer search and calculation queries, including combined requests.
+
+Current status: The basic LLM + MCP agent workflow is working successfully.
+Next, I will focus on improving multi-tool execution and making the agent flow.
+
+
+
+                    User Query
+                        │
+                        ▼
+                  ┌───────────┐
+                  │  Groq LLM │
+                  └─────┬─────┘
+                        │
+                 Select MCP Tool
+                        │
+                        ▼
+                ┌──────────────┐
+                │  MCP Client  │
+                └──────┬───────┘
+                       │
+                  MCP Protocol
+                       │
+                       ▼
+                ┌──────────────┐
+                │  MCP Server  │
+                └──────┬───────┘
+                       │
+                Execute Tool
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+        SQLite Database     Other Logic
+              │                 │
+              └────────┬────────┘
+                       ▼
+                  Tool Result
+                       │
+                       ▼
+                ┌──────────────┐
+                │  MCP Client  │
+                └──────┬───────┘
+                       │
+                 Result to LLM
+                       │
+                       ▼
+                  ┌───────────┐
+                  │  Groq LLM │
+                  └─────┬─────┘
+                        │
+                 Final Response
+                        │
+                        ▼
+                       User
