@@ -123,3 +123,39 @@ Next, I will focus on improving multi-tool execution and making the agent flow.
                         │
                         ▼
                        User
+
+Here’s the update on today's MCP hands-on : 04-09-2026
+
+MCP Client Robustness:
+
+Why we did this
+
+To make the MCP client reliable when the LLM sends invalid requests or when MCP tools fail.
+
+What we implemented
+Maximum iteration limit — prevents infinite agent loops.
+Tool validation — checks whether the requested tool exists.
+Argument validation — checks JSON, required fields, and data types.
+Enum validation — allows only valid calculator operations.
+MCP error handling — handles tool execution failures such as division by zero.
+Tool result handling — handles structured, text, and empty results.
+Duplicate-call detection — prevents executing the same tool request repeatedly.
+Clean logging — clearly shows LLM and MCP activities.
+
+
+Tests completed:
+
+Unknown tool → 
+Invalid/missing arguments → 
+Wrong argument type → 
+Invalid enum (power) → 
+Division by zero → 
+Structured result → 
+Text result → 
+Empty result → 
+Duplicate tool call → 
+Agent logging → 
+
+Tommorrow:
+ We will Complete the remaining edge-case test for maximum iteration protection and (Resources + LLM)
+Connect the LLM with our customer://{customer_id} MCP Resource and SQLite database.
