@@ -159,3 +159,40 @@ Agent logging →
 Tommorrow:
  We will Complete the remaining edge-case test for maximum iteration protection and (Resources + LLM)
 Connect the LLM with our customer://{customer_id} MCP Resource and SQLite database.
+
+
+
+
+Here’s the update on today's MCP hands-on : 04-09-2026
+
+
+MCP – Today’s hands-on Update
+
+Agentic MCP Workflow
+
+Completed the agentic workflow implementation and testing.
+Tested the agent with requests that require multiple MCP tool calls.
+Verified that the LLM can:
+Understand the user’s request.
+Select the required MCP tools.
+Execute tools step by step.
+Use the returned results to continue the workflow.
+Provide a final response based on the tool results.
+
+Tested multiple tasks in a single request, such as:
+Customer search + calculation.
+Multiple calculations.
+Customer search + multiple calculations.
+Tested tool failure handling using a divide-by-zero scenario.
+Verified that when one MCP tool fails, the agent can continue with the remaining tasks and report the failure accurately.
+
+
+Work Flow
+
+User Request → LLM → Select MCP Tool → MCP Server → Execute Tool → Return Result → LLM → Next Tool (if required) → Final Response
+
+
+Tomorrow:
+I will tart MCP Agent Improvements. and will Improve MCP error propagation so tool errors are passed to the LLM more clearly.
+Then will Improve the error messages and handling flow.
+Finally,I will clean up the temporary test code and continue improving the agent workflow.

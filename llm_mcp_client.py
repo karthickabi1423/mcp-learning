@@ -72,7 +72,7 @@ def validate_tool_arguments(tool, arguments):
         if name in required:
             fields[name] = (field_type, ...)
         else:
-            fields[name] = (field_type, None)
+            fields[name] = (field_type | None, None)
 
     model = create_model(
         f"{tool.name}Arguments",
@@ -82,7 +82,11 @@ def validate_tool_arguments(tool, arguments):
     try:
         validated = model.model_validate(arguments)
 
-        return True, validated.model_dump()
+        validated_arguments = validated.model_dump(
+            exclude_none=True
+        )
+
+        return True, validated_arguments
 
     except ValidationError as error:
         return False, str(error)
@@ -282,6 +286,57 @@ async def execute_mcp_tool(
     return tool_result
 
 
+
+async def get_customer_resource(session, customer_id):
+    """Read customer information from an MCP Resource."""
+    resource = await session.read_resource(
+        f"customer://{customer_id}"
+    )
+    return resource.contents[0].text
+
+async def get_customer_prompt(session, customer_id):
+    """Retrieve the customer analysis prompt from the MCP server."""
+
+    prompt_result = await session.get_prompt(
+        "analyze_customer",
+        arguments={
+            "customer_id": customer_id
+        }
+    )
+
+    return prompt_result.messages[0].content.text
+
+def extract_customer_id(text):
+    import re
+
+    match = re.search(r'\bcustomer\s+(\d+)\b', text, re.IGNORECASE)
+
+    if match:
+        return match.group(1)
+
+    return None
+
+
+
+async def prepare_resource_context(session, user_query):
+    """Retrieve MCP Resource data when a customer ID is present."""
+
+    customer_id = extract_customer_id(user_query)
+
+    if not customer_id:
+        return None
+
+    print(f"\n[RESOURCE] Customer ID detected: {customer_id}")
+
+    customer_data = await get_customer_resource(
+        session,
+        customer_id
+    )
+
+    print("\n[RESOURCE] Customer data retrieved:")
+    print(customer_data)
+
+    return customer_data
 # ==================================================
 # MCP SERVER SETUP
 # ==================================================
@@ -310,6 +365,30 @@ async def main():
 
             print("\n=== MCP CONNECTION ===")
             print("Connected to MCP server successfully!")
+
+
+
+            resource_templates = await session.list_resource_templates()
+
+            print("\n=== MCP RESOURCE TEMPLATES ===")
+
+            for template in resource_templates.resource_templates:
+                print(f"Name: {template.name}")
+                print(f"URI Template: {template.uri_template}")
+                print(f"Description: {template.description}")
+
+
+            # ------------------------------------------
+            # DISCOVER MCP PROMPTS
+            # ------------------------------------------
+
+            prompts_result = await session.list_prompts()
+
+            print("\n=== MCP PROMPTS ===")
+
+            for prompt in prompts_result.prompts:
+                print(f"\nPrompt: {prompt.name}")
+                print(f"Description: {prompt.description}")
 
             # ------------------------------------------
             # 2. DISCOVER MCP TOOLS
@@ -364,32 +443,105 @@ async def main():
             # ------------------------------------------
 
             user_query = input("\nYou: ")
+            prompt_text = None
+            customer_id = extract_customer_id(user_query)
+
+            if customer_id:
+                prompt_text = await get_customer_prompt(
+                    session,
+                    customer_id
+                )
+
+                print("\n[PROMPT] Retrieved MCP Prompt:")
+                print(prompt_text)
+
+            customer_data = await prepare_resource_context(
+                session,
+                user_query
+            )
 
             system_prompt = """
-You are an assistant connected to an MCP server.
+                You are an assistant connected to an MCP server.
+                You have access to tools, resources, and prompts provided by the MCP server.
 
-You have access to tools provided by the MCP server.
+                Rules:
 
-When a user's request can be answered using an available tool,
-prefer using the tool instead of calculating or guessing the result yourself.
+                1. Use MCP tools whenever they are relevant to the user's request.
 
-Use MCP tools whenever they are relevant to the user's request.
+                2. For any arithmetic calculation, ALWAYS use the appropriate MCP calculation tool.
 
-Do not invent customer information.
+                3. Do not perform arithmetic calculations yourself when an MCP calculation tool is available.
 
-Always use the MCP tool results when providing customer-related information.
-"""
+                4. For customer-related information, ONLY use facts explicitly provided by MCP tools or MCP resources.
+
+                5. NEVER invent, assume, or infer customer facts that are not provided by MCP.
+
+                6. If information about a customer is not available from MCP, clearly say that the information is not available.
+
+                7. You may provide business recommendations or suggestions, but clearly distinguish recommendations from verified customer facts.
+
+                8. Do not treat a company name, customer name, industry, or status as evidence for additional facts.
+
+                9. Always use MCP results when providing customer-related information.
+
+                10. If an MCP tool returns an error, report the error accurately and continue processing the remaining parts of the user's request when possible.
+
+                11. When an MCP prompt is provided, follow its instructions while respecting all of the rules above.
+                12. Never use words such as "likely", "probably", "indicates", "represents",
+                    or similar language to turn missing customer data into implied facts.
+
+                13. When analyzing a customer, clearly separate:
+                    - Verified Facts: information directly provided by MCP.
+                    - Analysis: general observations about the customer's industry.
+                    - Recommendations: possible actions or opportunities.
+
+                14. Do not describe general industry characteristics as facts about the specific customer.
+
+                15. If a specific customer fact is not present in MCP data, say:
+                    "This information is not available in the MCP customer record."
+                """
 
             messages = [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": user_query
-                }
+                {"role": "system", "content": system_prompt},
             ]
+
+            if prompt_text:
+                messages.append({
+                    "role": "system",
+                    "content": (
+                        "MCP Prompt instructions retrieved for this request:\n\n"
+                        + prompt_text
+                    )
+                })
+
+            if customer_data:
+                messages.append({
+                    "role": "system",
+                    "content": (
+                        "=== VERIFIED MCP CUSTOMER DATA ===\n\n"
+                        + customer_data
+                        + "\n\n"
+                        "=== END VERIFIED MCP CUSTOMER DATA ===\n\n"
+                        "GROUNDING REQUIREMENTS:\n"
+                        "1. Treat only the fields explicitly present above as "
+                        "verified customer facts.\n"
+                        "2. Do not infer relationships between fields.\n"
+                        "3. Do not infer facts from names, company names, industry, "
+                        "or status values.\n"
+                        "4. If requested customer information is not present above, "
+                        "say that it is not available in the MCP customer record.\n"
+                        "5. General industry knowledge is allowed only when clearly "
+                        "labelled as general industry analysis.\n"
+                        "6. Business opportunities and next actions are suggestions, "
+                        "not verified customer facts.\n"
+                        "7. Never present assumptions or general industry knowledge "
+                        "as facts about this specific customer."
+                    )
+                })
+            messages.append({
+                "role": "user",
+                "content": user_query
+            })
 
             # ------------------------------------------
             # 5. AGENT CONFIGURATION
@@ -451,7 +603,11 @@ Always use the MCP tool results when providing customer-related information.
                                 "id": tool_call.id,
                                 "type": "function",
                                 "function": {
-                                    "name": tool_call.function.name,
+                                    "name": (
+                                        tool_call.function.name.split("<|channel|>", 1)[0]
+                                        if "<|channel|>" in tool_call.function.name
+                                        else tool_call.function.name
+                                    ),
                                     "arguments": tool_call.function.arguments
                                 }
                             }
@@ -467,6 +623,9 @@ Always use the MCP tool results when providing customer-related information.
                 for tool_call in message.tool_calls:
 
                     tool_name = tool_call.function.name
+
+                    if "<|channel|>" in tool_name:
+                        tool_name = tool_name.split("<|channel|>", 1)[0]
 
                     # ----------------------------------
                     # Parse arguments for duplicate check
@@ -732,5 +891,140 @@ async def test_unknown_tool():
     print(result)
 
 
+async def test_invalid_json():
+    print("\n=== INVALID JSON TEST ===")
+
+    fake_tool_call = type(
+        "FakeToolCall",
+        (),
+        {
+            "function": type(
+                "FakeFunction",
+                (),
+                {
+                    "name": "calculate",
+                    "arguments": '{"a": 10, "b": 5, "operation": "multiply"'
+                }
+            )()
+        }
+    )()
+
+    result = await execute_mcp_tool(
+        session=None,
+        tool_call=fake_tool_call,
+        available_tools=["calculate"],
+        tool_map={}
+    )
+
+    print("\n=== TEST RESULT ===")
+    print(result)
+
+async def test_missing_required_argument():
+    print("\n=== MISSING REQUIRED ARGUMENT TEST ===")
+
+    fake_tool_call = type(
+        "FakeToolCall",
+        (),
+        {
+            "function": type(
+                "FakeFunction",
+                (),
+                {
+                    "name": "calculate",
+                    "arguments": '{"a": 10, "operation": "multiply"}'
+                }
+            )()
+        }
+    )()
+
+    # Get the real calculate tool schema
+    from mcp.server.mcpserver import MCPServer
+
+    fake_tool = type(
+        "FakeTool",
+        (),
+        {
+            "name": "calculate",
+            "input_schema": {
+                "properties": {
+                    "a": {"type": "number"},
+                    "b": {"type": "number"},
+                    "operation": {
+                        "type": "string",
+                        "enum": [
+                            "add",
+                            "subtract",
+                            "multiply",
+                            "divide"
+                        ]
+                    }
+                },
+                "required": ["a", "b", "operation"]
+            }
+        }
+    )()
+
+    result = await execute_mcp_tool(
+        session=None,
+        tool_call=fake_tool_call,
+        available_tools=["calculate"],
+        tool_map={"calculate": fake_tool}
+    )
+
+    print("\n=== TEST RESULT ===")
+    print(result)
+
+async def test_wrong_argument_type():
+    print("\n=== WRONG ARGUMENT TYPE TEST ===")
+
+    fake_tool_call = type(
+        "FakeToolCall",
+        (),
+        {
+            "function": type(
+                "FakeFunction",
+                (),
+                {
+                    "name": "calculate",
+                    "arguments": '{"a": "ten", "b": 5, "operation": "multiply"}'
+                }
+            )()
+        }
+    )()
+
+    fake_tool = type(
+        "FakeTool",
+        (),
+        {
+            "name": "calculate",
+            "input_schema": {
+                "properties": {
+                    "a": {"type": "number"},
+                    "b": {"type": "number"},
+                    "operation": {
+                        "type": "string",
+                        "enum": [
+                            "add",
+                            "subtract",
+                            "multiply",
+                            "divide"
+                        ]
+                    }
+                },
+                "required": ["a", "b", "operation"]
+            }
+        }
+    )()
+
+    result = await execute_mcp_tool(
+        session=None,
+        tool_call=fake_tool_call,
+        available_tools=["calculate"],
+        tool_map={"calculate": fake_tool}
+    )
+
+    print("\n=== TEST RESULT ===")
+    print(result)
+
 if __name__ == "__main__":
-    asyncio.run(test_unknown_tool())
+    asyncio.run(main())
