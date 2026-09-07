@@ -205,20 +205,25 @@ async def execute_mcp_tool(
 
     if result.is_error:
 
-        error_message = (
-            f"MCP tool '{tool_name}' returned an error."
-        )
+        error_details = "Unknown MCP tool error."
 
         if result.content:
+            error_parts = []
 
-            first_content = result.content[0]
+            for content in result.content:
+                if hasattr(content, "text"):
+                    error_parts.append(content.text)
+                else:
+                    error_parts.append(str(content))
 
-            if hasattr(first_content, "text"):
+            if error_parts:
+                error_details = "\n".join(error_parts)
 
-                error_message = (
-                    f"MCP tool '{tool_name}' returned an error: "
-                    f"{first_content.text}"
-                )
+        error_message = (
+            f"MCP tool execution failed.\n"
+            f"Tool: {tool_name}\n"
+            f"Error: {error_details}"
+        )
 
         print("\n=== MCP TOOL ERROR ===")
         print("Tool:", tool_name)
@@ -748,283 +753,28 @@ async def main():
 
 
 
-# ==================================================
-# DUPLICATE TOOL CALL TEST
-# ==================================================
 
-def test_duplicate_detection():
+async def test_raw_mcp_error():
+    print("\n=== RAW MCP ERROR TEST ===")
 
-    print("\n=== DUPLICATE TOOL CALL TEST ===")
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
 
-    executed_tool_calls = set()
+            await session.initialize()
 
-    # ------------------------------------------
-    # First tool call
-    # ------------------------------------------
-
-    tool_name = "calculate"
-
-    arguments = {
-        "a": 10,
-        "b": 10,
-        "operation": "multiply"
-    }
-
-    tool_call_key = (
-        tool_name,
-        json.dumps(
-            arguments,
-            sort_keys=True
-        )
-    )
-
-    print("\nFirst tool call:")
-    print("Tool:", tool_name)
-    print("Arguments:", arguments)
-
-    if tool_call_key in executed_tool_calls:
-
-        print("❌ Duplicate detected")
-
-    else:
-
-        executed_tool_calls.add(tool_call_key)
-
-        print("✅ First call accepted")
-        print("Tool would be executed.")
-
-
-    # ------------------------------------------
-    # Second identical tool call
-    # ------------------------------------------
-
-    print("\nSecond tool call:")
-    print("Tool:", tool_name)
-    print("Arguments:", arguments)
-
-    if tool_call_key in executed_tool_calls:
-
-        print("⚠️ Duplicate tool call detected!")
-        print("MCP tool will NOT be executed again.")
-
-    else:
-
-        executed_tool_calls.add(tool_call_key)
-
-        print("✅ Call accepted")
-        print("Tool would be executed.")
-
-
-    # ------------------------------------------
-    # Third different tool call
-    # ------------------------------------------
-
-    different_arguments = {
-        "a": 20,
-        "b": 5,
-        "operation": "multiply"
-    }
-
-    different_tool_call_key = (
-        tool_name,
-        json.dumps(
-            different_arguments,
-            sort_keys=True
-        )
-    )
-
-    print("\nThird tool call:")
-    print("Tool:", tool_name)
-    print("Arguments:", different_arguments)
-
-    if different_tool_call_key in executed_tool_calls:
-
-        print("⚠️ Duplicate detected")
-
-    else:
-
-        executed_tool_calls.add(
-            different_tool_call_key
-        )
-
-        print("✅ Different call accepted")
-        print("Tool would be executed.")
-
-
-        
-# ==================================================
-# PROGRAM ENTRY POINT
-# ==================================================
-
-async def test_unknown_tool():
-    print("\n=== UNKNOWN TOOL TEST ===")
-
-    tool_map = {
-        "add_numbers": "dummy",
-        "calculate": "dummy",
-        "search_customers": "dummy"
-    }
-
-    fake_tool_call = type(
-        "FakeToolCall",
-        (),
-        {
-            "function": type(
-                "FakeFunction",
-                (),
-                {
-                    "name": "unknown_tool",
-                    "arguments": "{}"
+            result = await session.call_tool(
+                "calculate",
+                arguments={
+                    "a": 20,
+                    "b": 0,
+                    "operation": "divide"
                 }
-            )()
-        }
-    )()
+            )
 
-    result = await execute_mcp_tool(
-        session=None,
-        tool_call=fake_tool_call,
-        available_tools=[],
-        tool_map=tool_map
-    )
-
-    print("\n=== TEST RESULT ===")
-    print(result)
-
-
-async def test_invalid_json():
-    print("\n=== INVALID JSON TEST ===")
-
-    fake_tool_call = type(
-        "FakeToolCall",
-        (),
-        {
-            "function": type(
-                "FakeFunction",
-                (),
-                {
-                    "name": "calculate",
-                    "arguments": '{"a": 10, "b": 5, "operation": "multiply"'
-                }
-            )()
-        }
-    )()
-
-    result = await execute_mcp_tool(
-        session=None,
-        tool_call=fake_tool_call,
-        available_tools=["calculate"],
-        tool_map={}
-    )
-
-    print("\n=== TEST RESULT ===")
-    print(result)
-
-async def test_missing_required_argument():
-    print("\n=== MISSING REQUIRED ARGUMENT TEST ===")
-
-    fake_tool_call = type(
-        "FakeToolCall",
-        (),
-        {
-            "function": type(
-                "FakeFunction",
-                (),
-                {
-                    "name": "calculate",
-                    "arguments": '{"a": 10, "operation": "multiply"}'
-                }
-            )()
-        }
-    )()
-
-    # Get the real calculate tool schema
-    from mcp.server.mcpserver import MCPServer
-
-    fake_tool = type(
-        "FakeTool",
-        (),
-        {
-            "name": "calculate",
-            "input_schema": {
-                "properties": {
-                    "a": {"type": "number"},
-                    "b": {"type": "number"},
-                    "operation": {
-                        "type": "string",
-                        "enum": [
-                            "add",
-                            "subtract",
-                            "multiply",
-                            "divide"
-                        ]
-                    }
-                },
-                "required": ["a", "b", "operation"]
-            }
-        }
-    )()
-
-    result = await execute_mcp_tool(
-        session=None,
-        tool_call=fake_tool_call,
-        available_tools=["calculate"],
-        tool_map={"calculate": fake_tool}
-    )
-
-    print("\n=== TEST RESULT ===")
-    print(result)
-
-async def test_wrong_argument_type():
-    print("\n=== WRONG ARGUMENT TYPE TEST ===")
-
-    fake_tool_call = type(
-        "FakeToolCall",
-        (),
-        {
-            "function": type(
-                "FakeFunction",
-                (),
-                {
-                    "name": "calculate",
-                    "arguments": '{"a": "ten", "b": 5, "operation": "multiply"}'
-                }
-            )()
-        }
-    )()
-
-    fake_tool = type(
-        "FakeTool",
-        (),
-        {
-            "name": "calculate",
-            "input_schema": {
-                "properties": {
-                    "a": {"type": "number"},
-                    "b": {"type": "number"},
-                    "operation": {
-                        "type": "string",
-                        "enum": [
-                            "add",
-                            "subtract",
-                            "multiply",
-                            "divide"
-                        ]
-                    }
-                },
-                "required": ["a", "b", "operation"]
-            }
-        }
-    )()
-
-    result = await execute_mcp_tool(
-        session=None,
-        tool_call=fake_tool_call,
-        available_tools=["calculate"],
-        tool_map={"calculate": fake_tool}
-    )
-
-    print("\n=== TEST RESULT ===")
-    print(result)
+            print("\n=== RAW RESULT ===")
+            print("is_error:", result.is_error)
+            print("content:", result.content)
+            print("structured_content:", result.structured_content)
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -19,7 +19,7 @@ def calculate(
     a: float,
     b: float,
     operation: Literal["add", "subtract", "multiply", "divide"]
-) -> float:
+) -> float | str:
     """Perform a basic calculation on two numbers."""
     if operation == "add":
         return a + b
@@ -32,7 +32,7 @@ def calculate(
 
     elif operation == "divide":
         if b == 0:
-            raise ValueError("Cannot divide by zero.")
+            return "Error: Cannot divide by zero."
 
         return a / b
 
