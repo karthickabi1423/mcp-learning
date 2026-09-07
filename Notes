@@ -196,3 +196,110 @@ Tomorrow:
 I will tart MCP Agent Improvements. and will Improve MCP error propagation so tool errors are passed to the LLM more clearly.
 Then will Improve the error messages and handling flow.
 Finally,I will clean up the temporary test code and continue improving the agent workflow.
+
+
+
+
+MCP Learning Notes — Today
+1. What we did today
+
+Added logging to clearly see LLM responses, tool requests, and MCP execution.
+Created tests/test_agent.py and moved the agent tests into a separate test file.
+Converted the tests to pytest and got all 6 tests passing.
+Tested MCP Resource and Prompt integration with customer data.
+Improved the customer analysis prompt to reduce hallucinated customer information.
+Continued the customer intelligence workflow with MCP, SQLite, and Groq LLM.
+Added and tested the get_customers_needing_follow_up tool.
+The tool finds active customers who have not been contacted recently.
+Tested it with the default 14-day value and received customers 1001 and 1002.
+
+
+Connected the tool with the agent loop and tested:
+
+Find customers who need follow-up and analyze them.
+
+The LLM correctly selected the follow-up tool and generated analysis for both customers.
+We also worked on keeping the analysis based on verified customer information.
+We found that the LLM can still add general industry assumptions, so grounding needs further improvement.
+
+
+2. Flow we learned today
+              User Query
+              ↓
+              Groq LLM
+              ↓
+              MCP Tool
+              ↓
+              MCP Server
+              ↓
+              SQLite Database
+              ↓
+              Customer Data
+              ↓
+              MCP Client
+              ↓
+              Groq LLM
+              ↓
+              Final Analysis
+
+Tool → performs an action or retrieves information.
+Resource → provides specific customer data.
+Prompt → gives instructions for analysis.
+LLM → decides what action to take.
+MCP Client → connects the LLM with the MCP server.
+
+
+3. Test case completed today:
+
+Test Case: Agent tool calling and validation
+
+Tests completed:
+
+Duplicate tool call
+Unknown tool
+Invalid JSON
+Missing required argument
+Wrong argument type
+MCP tool error
+
+Result:
+
+6 passed
+We also tested a customer analysis request.
+The agent retrieved the MCP Resource and Prompt and produced a grounded response.
+An adversarial test asking for unavailable customer information correctly returned that the information was not available.
+
+Test Case: Customers needing follow-up
+
+Input:
+
+Find customers who need follow-up and analyze them.
+
+Result:
+
+1001 — Arun Kumar — TechNova Solutions
+1002 — Priya Sharma — GreenLeaf Industries
+The follow-up tool executed successfully.
+The agent completed the task in 2 iterations.
+The LLM generated analysis and recommendations for both customers.
+
+
+4. Important issue we found:
+
+LLMs can sometimes invent information that is not present in the MCP data.
+Strong prompts and verified data can reduce this problem, but we need to keep testing it.
+This showed why grounding and validation are important when building AI agents.
+
+The agent works, but the LLM can mix verified customer facts with general industry information.
+We need to keep customer-specific analysis based only on information available through MCP.
+Facts, general observations, and recommendations should be clearly separated.
+
+
+5. Tomorrow's hands-on plan:
+
+Continue the multi-customer analysis workflow.
+Improve MCP Resource retrieval for multiple customers.
+Make the analysis more strongly grounded in verified data.
+Test customer://1001 and customer://1002.
+Add tests for the multi-customer workflow.
+Make Resource retrieval more generic and reusable.

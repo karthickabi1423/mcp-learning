@@ -726,7 +726,32 @@ async def main():
                         tool_call,
                         available_tools,
                         tool_map
-                    )
+                    )   
+
+                    # ----------------------------------
+                    # Retrieve customer resources
+                    # ----------------------------------
+
+                    if tool_name == "get_customers_needing_follow_up":
+
+                        import re
+
+                        customer_ids = re.findall(
+                            r"Customer ID:\s*(\d+)",
+                            tool_result
+                        )
+
+                        for customer_id in customer_ids:
+
+                            customer_resource = await get_customer_resource(
+                                session,
+                                customer_id
+                            )
+
+                            tool_result += (
+                                f"\n\n=== MCP RESOURCE: customer://{customer_id} ===\n"
+                                f"{customer_resource}"
+                            )
 
                     # ----------------------------------
                     # Send result back to LLM
