@@ -303,3 +303,130 @@ Make the analysis more strongly grounded in verified data.
 Test customer://1001 and customer://1002.
 Add tests for the multi-customer workflow.
 Make Resource retrieval more generic and reusable.
+
+
+
+MCP Learning Notes — -08-09-2026
+
+1. What we did today:
+
+Added priority to the customer database.
+Added days_since_contact to customer search results.
+Added a follow-up score for customers.
+
+Used this formula:
+High = 3
+Medium = 2
+Low = 1
+
+Follow-up Score = Priority Weight × Days Since Contact
+Tested the score:
+Customer 1001 → 57
+Customer 1002 → 48
+
+Created prioritize_customers() in database.py.
+The function calculates the score and sorts customers from highest to lowest score.
+Added prioritize_customers as an MCP tool.
+Tested the tool successfully through the MCP client and Groq LLM.
+
+Tested the query:
+Who should I contact first?
+The LLM correctly selected prioritize_customers and recommended Customer 1001.
+Added a days parameter to prioritize_customers().
+
+Tested different follow-up periods:
+14 days → Customers 1001 and 1002
+20 days → Customer 1002 only
+Fixed duplicate test output caused by incorrect indentation.
+Fixed the missing newline in the customer output.
+
+2. Flow we learned today
+
+User Query
+    ↓
+Groq LLM
+    ↓
+MCP Tool
+    ↓
+MCP Server
+    ↓
+SQLite Database
+    ↓
+Business Logic
+    ↓
+Follow-up Score
+    ↓
+Customer Ranking
+    ↓
+MCP Result
+    ↓
+Groq LLM
+    ↓
+Final 
+
+Database → stores customer data.
+Business Logic → calculates scores and ranking.
+MCP Tool → provides the business logic to the LLM.
+MCP Client → connects the LLM to the MCP server.
+LLM → selects the tool and explains the result.
+
+3. Test cases completed today:
+
+Test Case: Follow-up Score
+
+Result:
+
+1001 → High × 19 = 57
+1002 → Medium × 24 = 48
+
+Score calculation worked correctly.
+
+Test Case: Customer Prioritization
+
+Input:
+
+Prioritize the active customers for follow-up.
+
+Result:
+
+1. Arun Kumar → Score: 57
+2. Priya Sharma → Score: 48
+Test Case: Natural Language Tool Selection
+
+Input:
+
+Who should I contact first?
+
+Result:
+
+The LLM selected prioritize_customers and recommended Arun Kumar.
+
+Test Case: Follow-up Threshold
+
+Input:
+
+14 days
+20 days
+
+Result:
+
+14 days → Arun Kumar, Priya Sharma
+20 days → Priya Sharma
+
+The threshold worked correctly.
+
+4. Important issue we found & Solved:
+
+Business rules should be handled by application code, not by the LLM.
+The MCP server calculates the follow-up score and ranking.
+The LLM uses the result and explains it to the user.
+We also fixed duplicate output caused by incorrect indentation.
+
+
+5. Tomorrow's hands-on plan
+Expose the days parameter through the MCP tool.
+Check the updated MCP tool schema.
+Test prioritize_customers(days=20).
+Test natural-language requests with different follow-up periods.
+Verify that the LLM sends the correct days value.
+Continue improving the customer prioritization workflow.

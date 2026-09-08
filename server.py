@@ -1,24 +1,30 @@
 from mcp.server.mcpserver import MCPServer
-from database import(
+
+from database import (
     get_customer as get_customer_from_db,
     search_customers as search_customers_from_db,
-    get_customers_needing_follow_up as get_customers_needing_follow_up_from_db
+    get_customers_needing_follow_up as get_customers_needing_follow_up_from_db,
+    calculate_follow_up_score,
+    prioritize_customers as prioritize_customers_from_db
 )
 
 from typing import Literal
+
 
 # Create the MCP server
 mcp = MCPServer("my-first-mcp-server")
 
 
-# Create our first MCP tool
+# ============================================================
+# TOOLS
+# ============================================================
+
 @mcp.tool()
 def add_numbers(a: int, b: int) -> int:
-    """Add two numbers together """
+    """Add two numbers together."""
     return a + b
 
 
-# Create our second MCP tool
 @mcp.tool()
 def calculate(
     a: float,
@@ -26,6 +32,7 @@ def calculate(
     operation: Literal["add", "subtract", "multiply", "divide"]
 ) -> float | str:
     """Perform a basic calculation on two numbers."""
+
     if operation == "add":
         return a + b
 
@@ -41,13 +48,13 @@ def calculate(
 
         return a / b
 
-    
+
 @mcp.tool()
 def search_customers(
     industry: str = "",
     status: str = ""
 ) -> str:
-    """Search customers by industry and/or status"""
+    """Search customers by industry and/or status."""
 
     customers = search_customers_from_db(
         industry=industry or None,
@@ -60,7 +67,20 @@ def search_customers(
     results = []
 
     for customer in customers:
-        customer_id, name, company, industry, status, last_contacted = customer
+        (
+            customer_id,
+            name,
+            company,
+            industry,
+            status,
+            last_contacted,
+            priority,
+            days_since_contact
+        ) = customer
+        follow_up_score = calculate_follow_up_score(
+            priority,
+            days_since_contact
+        )
 
         results.append(
             f"Customer ID: {customer_id}\n"
@@ -68,11 +88,13 @@ def search_customers(
             f"Company: {company}\n"
             f"Industry: {industry}\n"
             f"Status: {status}\n"
-            f"Last Contacted: {last_contacted}"
+            f"Last Contacted: {last_contacted}\n"
+            f"Priority: {priority}\n"
+            f"Days Since Contact: {days_since_contact}"
+            f"Follow-up Score: {follow_up_score}"
         )
 
     return "\n\n".join(results)
-
 
 @mcp.tool()
 def get_customers_needing_follow_up(days: int = 14) -> str:
@@ -92,8 +114,14 @@ def get_customers_needing_follow_up(days: int = 14) -> str:
             company,
             industry,
             status,
-            last_contacted
+            last_contacted,
+            priority,
+            days_since_contact
         ) = customer
+        follow_up_score = calculate_follow_up_score(
+            priority,
+            days_since_contact
+        )
 
         results.append(
             f"Customer ID: {customer_id}\n"
@@ -101,21 +129,75 @@ def get_customers_needing_follow_up(days: int = 14) -> str:
             f"Company: {company}\n"
             f"Industry: {industry}\n"
             f"Status: {status}\n"
-            f"Last Contacted: {last_contacted}"
+            f"Last Contacted: {last_contacted}\n"
+            f"Priority: {priority}\n"
+            f"Days Since Contact: {days_since_contact}\n"
+            f"Follow-up Score: {follow_up_score}"
         )
 
     return "\n\n".join(results)
-# Resources
+
+@mcp.tool()
+def prioritize_customers() -> str:
+    """Prioritize active customers by follow-up score."""
+
+    customers = prioritize_customers_from_db()
+
+    if not customers:
+        return "No active customers found."
+
+    results = []
+
+    for rank, customer in enumerate(customers, start=1):
+        (
+            customer_id,
+            name,
+            company,
+            industry,
+            status,
+            last_contacted,
+            priority,
+            days_since_contact,
+            follow_up_score
+        ) = customer
+
+        results.append(
+            f"Rank: {rank}\n"
+            f"Customer ID: {customer_id}\n"
+            f"Name: {name}\n"
+            f"Company: {company}\n"
+            f"Industry: {industry}\n"
+            f"Status: {status}\n"
+            f"Last Contacted: {last_contacted}\n"
+            f"Priority: {priority}\n"
+            f"Days Since Contact: {days_since_contact}\n"
+            f"Follow-up Score: {follow_up_score}"
+        )
+
+    return "\n\n".join(results)
+
+# ============================================================
+# RESOURCE
+# ============================================================
 
 @mcp.resource("customer://{customer_id}")
 def customer_resource(customer_id: str) -> str:
     """Retrieve customer information from the SQLite database."""
+
     customer = get_customer_from_db(int(customer_id))
 
     if customer is None:
         return f"Customer with ID {customer_id} was not found."
 
-    customer_id, name, company, industry, status, last_contacted = customer
+    (
+        customer_id,
+        name,
+        company,
+        industry,
+        status,
+        last_contacted,
+        priority
+    ) = customer
 
     return f"""
 Customer ID: {customer_id}
@@ -124,11 +206,13 @@ Company: {company}
 Industry: {industry}
 Status: {status}
 Last Contacted: {last_contacted}
+Priority: {priority}
 """
 
 
-
-#Prompt
+# ============================================================
+# PROMPT
+# ============================================================
 
 @mcp.prompt()
 def analyze_customer(customer_id: str) -> str:
@@ -158,6 +242,11 @@ Provide:
 
 Keep the analysis concise and practical.
 """
+
+
+# ============================================================
+# START SERVER
+# ============================================================
 
 if __name__ == "__main__":
     mcp.run()
