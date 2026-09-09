@@ -1,0 +1,71 @@
+AI Gateway — Day 1
+
+What is an AI Gateway?
+
+An AI Gateway is a central layer between an application and AI/LLM providers.
+
+   text
+Application
+     ↓
+AI Gateway
+     ↓
+OpenAI / Anthropic / Gemini
+
+
+Why do we need it?
+
+Without a gateway:
+
+text Application → OpenAI
+text Application → Anthropic
+
+
+With a gateway:
+
+  text
+Application
+     ↓
+AI Gateway
+     ↓
+OpenAI / Anthropic / Gemini
+
+
+The gateway gives one central place to manage AI requests.
+
+What can an AI Gateway do?
+
+Routing — choose the right model/provider.
+Authentication — check who is making the request.
+Authorization — check what they are allowed to use.
+Rate limiting — control the number of requests.
+Caching — return an existing response without calling the model again.
+Retry — try the same provider again when a temporary error happens.
+Fallback — use another provider/model when the main one fails.
+Security — protect sensitive data and apply policies.
+Logging — record request details.
+Cost tracking — track token usage and AI cost.
+
+Important difference
+
+Provider ≠ Model ≠ Gateway
+
+   text
+Application
+     ↓
+AI Gateway
+     ↓
+Provider
+     ↓
+Model
+
+
+Application → sends the user's request.
+AI Gateway → controls and manages the AI request.
+Provider → provides access to AI models.
+Model → generates the actual AI response.
+
+ Main idea
+
+AI Gateway is a centralized control layer for AI traffic.
+
+It is more than just a proxy because it can handle routing, security, reliability, caching, monitoring, and cost control.

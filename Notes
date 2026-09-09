@@ -430,3 +430,214 @@ Test prioritize_customers(days=20).
 Test natural-language requests with different follow-up periods.
 Verify that the LLM sends the correct days value.
 Continue improving the customer prioritization workflow.
+
+
+
+MCP Learning Notes — 09-09-2026
+
+1. What we did today:
+Tested natural-language tool selection with multiple parameters.
+Tested prioritize_customers with:
+days = 15
+industry = Software
+status = Active
+Customer 1001 (Arun Kumar) was correctly returned.
+
+Tested:
+
+Who should I contact first?
+
+LLM selected prioritize_customers and recommended Arun Kumar (Score: 60).
+
+Tested:
+
+Find active customers.
+
+LLM correctly selected search_customers.
+
+Tested multiple tasks in one query:
+
+Find active Software customers, tell me who I should contact first, and calculate 25 multiplied by 4.
+
+LLM correctly used:
+prioritize_customers
+calculate
+
+Results:
+Arun Kumar → Score: 60
+25 × 4 → 100
+Tested dependent tool calls:
+get_customers_needing_follow_up
+prioritize_customers
+
+Improved the system prompt:
+
+MCP data is the source of truth.
+Use follow-up score for priority.
+Do not invent customer information.
+Do not claim unsupported actions.
+
+Improved the prioritize_customers tool description with:
+
+Follow-up Score = Priority Weight × Days Since Contact
+High = 3, Medium = 2, Low = 1
+Fixed the output formatting for Days Since Contact and Follow-up Score.
+
+2. Flow we learned today
+
+
+Natural-language tool selection
+User Query
+    ↓
+Groq LLM
+    ↓
+Understand User Intent
+    ↓
+Select MCP Tool
+    ↓
+MCP Server
+    ↓
+Business Logic
+    ↓
+MCP Result
+    ↓
+Groq LLM
+    ↓
+Final Answer
+Multi-step agent flow
+User Query
+    ↓
+LLM
+    ↓
+MCP Tool 1
+    ↓
+Tool Result
+    ↓
+LLM reasons over result
+    ↓
+MCP Tool 2
+    ↓
+Final Result
+
+The LLM can select different tools based on the user's intent.
+The MCP tools provide the actual data and business results.
+The LLM explains the results instead of creating its own customer facts.
+
+3. Test cases completed today:
+
+
+Test Case: Multi-Parameter Tool Selection
+
+Input:
+
+Which active Software customers should I prioritize if they haven't been contacted in 15 days?
+
+Result:
+
+prioritize_customers(
+    days=15,
+    industry=Software,
+    status=Active
+)
+
+Customer 1001 → Arun Kumar → Score: 60    Test passed.
+
+
+Test Case: Natural Language Prioritization
+
+Input:
+
+Who should I contact first?
+
+Result:
+
+The LLM selected prioritize_customers.
+Arun Kumar was ranked first with a score of 60.   Test passed.
+
+
+Test Case: Search vs Prioritization
+
+Input:
+
+Find active customers.
+
+Result:
+
+The LLM selected search_customers.
+
+Arun Kumar and Priya Sharma were returned -   Test passed.
+
+
+Test Case: Multiple Tool Calls
+
+Input:
+
+Find active Software customers, tell me who I should contact first, and calculate 25 multiplied by 4.
+
+Result:
+
+prioritize_customers → Arun Kumar
+calculate → 100  - Test passed.
+
+
+Test Case: Dependent Tool Calls
+Input:
+
+Find customers who need follow-up and tell me who I should contact first.
+
+Result:
+
+The LLM first called:
+
+get_customers_needing_follow_up
+
+Then used the result to call:
+
+prioritize_customers
+
+Arun Kumar was ranked first -- Test passed.
+
+Test Case: Grounded Agent Behavior
+
+Result:
+
+The LLM stopped making unsupported claims such as scheduling a call when no scheduling tool exists.
+
+The final recommendation was based on the MCP data --- Test passed.
+
+
+4. Important issue we found & solved:
+
+The LLM was sometimes adding unsupported actions or reasoning.
+For example, it previously suggested scheduling a call even though our MCP server has no scheduling tool.
+
+We improved the system prompt so the LLM must:
+
+Use MCP data as the source of truth.
+Follow the business rules provided by MCP.
+Avoid unsupported customer facts.
+Avoid claiming actions that were not performed.
+Base recommendations on verified data.
+
+We also learned that tool descriptions are important for LLM tool selection.
+
+Another issue was unnecessary tool calls. The agent sometimes used both get_customers_needing_follow_up and prioritize_customers even though prioritize_customers could handle the request directly.
+
+
+5. Tomorrow's hands-on plan
+
+Improve MCP tool selection efficiency.
+
+Update the get_customers_needing_follow_up tool description so the LLM understands when to use it and when to use prioritize_customers.
+
+Test:
+
+Find customers who need follow-up and tell me who I should contact first.
+
+Verify that the LLM can choose the most suitable tool directly.
+
+Then continue improving the customer prioritization workflow.
+
+
+
+

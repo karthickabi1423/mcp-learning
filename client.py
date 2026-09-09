@@ -63,6 +63,39 @@ async def run_client():
             print("\n=== SEARCH CUSTOMERS RESULT ===")
             print(result)
 
+            # Call prioritize_customers tool
+            result = await session.call_tool(
+                "prioritize_customers",
+                arguments={
+                    "days": 20
+                }
+            )
+
+            # Test prioritization with multiple filters
+            result = await session.call_tool(
+                "prioritize_customers",
+                arguments={
+                    "days": 15,
+                    "industry": "Software",
+                    "status": "Active"
+                }
+            )
+
+            print("\n=== PRIORITIZE — SOFTWARE + ACTIVE + 15 DAYS ===")
+            print(result)
+
+            print("\n=== PRIORITIZE CUSTOMERS — 20 DAYS ===")
+            print(result)
+            # Test invalid threshold
+            result = await session.call_tool(
+                "prioritize_customers",
+                arguments={
+                    "days": -5
+                }
+            )
+
+            print("\n=== INVALID PRIORITIZATION THRESHOLD ===")
+            print(result)
 
             # Read customer resource
             result = await session.read_resource(

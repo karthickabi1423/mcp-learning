@@ -90,7 +90,7 @@ def search_customers(
             f"Status: {status}\n"
             f"Last Contacted: {last_contacted}\n"
             f"Priority: {priority}\n"
-            f"Days Since Contact: {days_since_contact}"
+            f"Days Since Contact: {days_since_contact}\n"
             f"Follow-up Score: {follow_up_score}"
         )
 
@@ -138,10 +138,27 @@ def get_customers_needing_follow_up(days: int = 14) -> str:
     return "\n\n".join(results)
 
 @mcp.tool()
-def prioritize_customers() -> str:
-    """Prioritize active customers by follow-up score."""
+def prioritize_customers(
+    days: int = 14,
+    industry: str = "",
+    status: str = "Active"
+) -> str:
+    """Prioritize customers for follow-up using their follow-up score.
 
-    customers = prioritize_customers_from_db()
+    Follow-up Score = Priority Weight × Days Since Contact.
+    Priority weights: High = 3, Medium = 2, Low = 1.
+    Customers are ranked from highest score to lowest score.
+    Filters can be applied using days, industry, and status.
+    """
+
+    if days < 1:
+        return "Invalid threshold. Days must be at least 1."
+
+    customers = prioritize_customers_from_db(
+        days=days,
+        industry=industry,
+        status=status
+    )
 
     if not customers:
         return "No active customers found."

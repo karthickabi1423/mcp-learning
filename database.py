@@ -198,8 +198,28 @@ def calculate_follow_up_score(priority, days_since_contact):
     return weight * days_since_contact
 
 
-def prioritize_customers(days=14):
+def prioritize_customers(days=14, industry=None, status="Active"):
+    if days < 1:
+        return []
+
     customers = get_customers_needing_follow_up(days)
+
+    if industry or status:
+        filtered_customers = []
+
+        for customer in customers:
+            customer_industry = customer[3]
+            customer_status = customer[4]
+
+            if industry and customer_industry.lower() != industry.lower():
+                continue
+
+            if status and customer_status.lower() != status.lower():
+                continue
+
+            filtered_customers.append(customer)
+
+        customers = filtered_customers
 
     prioritized_customers = []
 
@@ -362,6 +382,38 @@ if __name__ == "__main__":
         print(
             f"{rank}. {name} "
             f"({company}) → "
+            f"Days: {days_since_contact}, "
+            f"Score: {follow_up_score}"
+        )
+    print("\nInvalid Threshold Test:")
+    customers = prioritize_customers(-5)
+    print(customers)
+
+    print("\nPrioritized Customers — Software + Active + 15 days:")
+
+    customers = prioritize_customers(
+        days=15,
+        industry="Software",
+        status="Active"
+    )
+
+    for rank, customer in enumerate(customers, start=1):
+        (
+            customer_id,
+            name,
+            company,
+            industry,
+            status,
+            last_contacted,
+            priority,
+            days_since_contact,
+            follow_up_score
+        ) = customer
+
+        print(
+            f"{rank}. {name} ({company}) → "
+            f"Industry: {industry}, "
+            f"Status: {status}, "
             f"Days: {days_since_contact}, "
             f"Score: {follow_up_score}"
         )
